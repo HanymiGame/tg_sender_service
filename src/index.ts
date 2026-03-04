@@ -37,11 +37,22 @@ async function runQueue(): Promise<void> {
     await redis.connect();
     logger.info(`Очередь запущена. Ключ: ${config.redis.queueKey}`);
 
+    let lastMetricState = '';
+
     metricsInterval = setInterval(async () => {
         try {
             const qLen = await redis.llen(config.redis.queueKey);
             const dLen = await redis.llen(config.redis.deadLetterKey);
-            logger.info(`[METRIC] queue=${qLen} dlq=${dLen} active=${activeRequests.size}`);
+            const active = activeRequests.size;
+
+            const currentState = `${qLen}:${dLen}:${active}`;
+            const hasActivity  = qLen > 0 || dLen > 0 || active > 0;
+
+            if (hasActivity || currentState !== lastMetricState) {
+                logger.debug(`[METRIC] queue=${qLen} dlq=${dLen} active=${active}`);
+            }
+
+            lastMetricState = currentState;
         } catch {}
     }, 60000);
 

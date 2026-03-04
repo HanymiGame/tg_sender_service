@@ -170,7 +170,8 @@ export function createProcessor(telegram: TelegramClient) {
 
         try {
             await handler(data);
-            logger.info(`OK [${method}] Chat ID: ${data.chat_id ?? 'unknown'}`);
+            const preview = data.text ? ` | "${data.text.slice(0, 100)}${data.text.length > 150 ? '...' : ''}"` : '';
+            logger.info(`OK [${method}] Chat ID: ${data.chat_id ?? 'unknown'}${preview}`);
             return true;
         } catch (error) {
             const tgError = error as { response?: { error_code?: number; description?: string; parameters?: { retry_after?: number } } } & Error;
