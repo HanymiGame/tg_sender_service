@@ -1,0 +1,56 @@
+services:
+  tg-sender:
+    build:
+      context: ./tg_sender_service
+      dockerfile: Dockerfile
+    container_name: tg_sender
+    restart: unless-stopped
+
+    environment:
+      TG_API_URL: https://api.telegram.org
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB:-2}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-user:}
+      REDIS_QUEUE_KEY: ${REDIS_QUEUE_KEY:-telegram_messages}
+      REDIS_DLQ_KEY: ${REDIS_DLQ_KEY:-telegram_messages:dlq}
+
+      USE_PROXY: ${USE_PROXY:-false}
+      PROXY_HOST: ${PROXY_HOST:-}
+      PROXY_PORT: ${PROXY_PORT:-}
+      PROXY_USER: ${PROXY_USER:-}
+      PROXY_PASS: ${PROXY_PASS:-}
+
+      HEALTH_PORT: 3009
+      HEALTH_HOST: 0.0.0.0
+
+      MAX_RETRIES: ${MAX_RETRIES:-3}
+      RETRY_BASE_DELAY_MS: ${RETRY_BASE_DELAY_MS:-5000}
+
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_DIR: /usr/src/app/logs
+      SERVICE_NAME: tg-sender
+
+    ports:
+      - "127.0.0.1:3009:3009"
+
+    volumes:
+      - tg_sender_logs:/usr/src/app/logs
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    healthcheck:
+      test: ["CMD", "node", "-e",
+        "require('http').get('http://localhost:3009/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  tg_sender_logs:
+    driver: local
